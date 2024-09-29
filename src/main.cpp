@@ -7,7 +7,7 @@
 #endif
 
 #define MAX_BRIGHTNESS 150
-#define FRAMES_PER_SECOND 20
+#define FRAMES_PER_SECOND 160
 #define CHIPSET_WS2812B true
 
 #if defined(TARGET_dark_duchess)
@@ -26,14 +26,11 @@ byte BASE_HUE = 240;
 
 struct fading_pixel {
   int id = -1;
-  byte val = 255;
-  int8_t step = 0;
-  bool step_downward = true;
+  uint8_t step = 0;
 };
 
 byte FADE_MAX = 255;
 byte FADE_MIN = 150;
-byte FADE_STEPS[] = {1, 2, 3, 5, 8, 13};
 #define FADE_NEW_PIXEL_CHANCE 1
 #define FADING_PIXEL_COUNT PIXEL_COUNT
 fading_pixel FADING_PIXELS[FADING_PIXEL_COUNT];
@@ -76,12 +73,8 @@ void next_frame() {
 }
 
 void fade_pixels() {
-  byte new_val;
-  byte step_width;
-
   for (int i = 0; i < FADING_PIXEL_COUNT; i++) {
     fading_pixel &pixel = FADING_PIXELS[i];
-    bool stop_fade = false;
 
     if (pixel.id == -1) {
       // This slot does not contain an active animation.
@@ -109,51 +102,13 @@ void fade_pixels() {
       }
     }
 
-    step_width = FADE_STEPS[pixel.step];
-    // Serial.printf("Initial val %d, step %d, width %d\r\n", pixel.val, pixel.step, step_width);
+    uint8_t wave_point = cubicwave8(pixel.step++);
+    // The wave starts & ends at zero, so subtract from max to invert it
+    wave_point = map8(255 - wave_point, FADE_MIN, FADE_MAX);  //map from 0, 255 to min and maxBreath;
 
-    if (pixel.step_downward) {
-      // dimming
-      while (pixel.val - (step_width * 5) < FADE_MIN) {
-        // We are getting close to the end, slow down the step
-        // Serial.printf("Slowing dimming down from step %d - val: %d width: %d\r\n", pixel.step, pixel.val, step_width);
-        pixel.step = max(0, pixel.step - 1);
-        step_width = FADE_STEPS[pixel.step];
-        if (pixel.step == 0) break; // Can't slow down any more
-      }
+    pixels[pixel.id] = CHSV(BASE_HUE, 255, wave_point);
 
-      new_val = pixel.val - step_width;
-      if (new_val <= FADE_MIN) {
-        // We are at the dimmest point
-        new_val = FADE_MIN;
-        pixel.step = 0;
-        pixel.step_downward = false;
-      }
-    } else {
-      // brightening
-      while (pixel.val + (step_width * 5) > FADE_MAX) {
-        // We are getting close to the end, slow down the step
-        // Serial.printf("Slowing brightening down from step %d - val: %d width: %d\r\n", pixel.step, pixel.val, step_width);
-        pixel.step = max(0, pixel.step - 1);
-        step_width = FADE_STEPS[pixel.step];
-        if (pixel.step == 0) break; // Can't slow down any more
-      }
-
-      new_val = pixel.val + step_width;
-      if (new_val >= FADE_MAX) {
-        // We've returned to full brightness
-        new_val = FADE_MAX;
-        pixel.step = 0;
-        pixel.step_downward = true;
-        stop_fade = true;
-      }
-    }
-
-    // Serial.printf("Set pixel %d %d -> %d (step %d, width %d)\r\n", pixel.id, pixel.val, new_val, pixel.step, step_width);
-    pixel.val = new_val;
-    pixel.step = min(sizeof(FADE_STEPS)/sizeof(byte) - 1, (uint)pixel.step + 1); // try to speed up
-    pixels[pixel.id] = CHSV(BASE_COLOR, 255, new_val);
-    if (stop_fade) {
+    if (pixel.step >= 255) {
       // Serial.printf("Stopping fade for pixel %d\r\n", pixel.id);
       pixel.id = -1;  // Stop dimming this pixel
     }
@@ -165,7 +120,6 @@ void start_fade(int fading_pixel_id, int pixel_id) {
   Serial.printf("Starting fade for pixel %d @ %d\r\n", pixel_id, millis());
   FADING_PIXELS[fading_pixel_id].id = pixel_id;
   FADING_PIXELS[fading_pixel_id].step = 0;
-  FADING_PIXELS[fading_pixel_id].step_downward = true;
 }
 
 int random_pixel() {
