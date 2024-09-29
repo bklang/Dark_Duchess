@@ -55,6 +55,8 @@ void setup() {
   FastLED.addLeds<APA102, LED_DATA, LED_CLK, COLOR_ORDER>(pixels, PIXEL_COUNT).setCorrection( TypicalLEDStrip );
   #endif
 
+  FastLED.setBrightness(MAX_BRIGHTNESS);
+
   for (int i = 0; i < PIXEL_COUNT; i++) {
     pixels[i] = CHSV(BASE_HUE, 255, 255);
   }
