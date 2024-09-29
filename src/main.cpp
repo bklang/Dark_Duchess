@@ -81,26 +81,29 @@ void fade_pixels() {
     fading_pixel &pixel = FADING_PIXELS[i];
     bool stop_fade = false;
 
-    // Prevent resetting an already-fading pixel
     if (pixel.id == -1) {
-      if (random(100) <= FADE_NEW_PIXEL_CHANCE) {
-        int new_pixel_id = random_pixel();
-        bool found = false;
-        for (int j = 0; j < FADING_PIXEL_COUNT; j++) {
-          if (FADING_PIXELS[j].id == new_pixel_id) {
-            found = true;
-            break;
-          }
-        }
-        if (found) {
-          // Serial.println("Pixel already fading; skipping");
-          continue;
-        } else {
-          start_fade(i, new_pixel_id);
-        }
-      } else {
+      // This slot does not contain an active animation.
+      // See if we should start a new animation on a random pixel
+      if (random(100) > FADE_NEW_PIXEL_CHANCE) {
         // Not starting a new fade this round
         continue;
+      }
+
+      int new_pixel_id = random_pixel();
+
+      // Check to see if it is already animating in another slot
+      bool found = false;
+      for (int j = 0; j < FADING_PIXEL_COUNT; j++) {
+        if (FADING_PIXELS[j].id == new_pixel_id) {
+          found = true;
+          break;
+        }
+      }
+      if (found) {
+        // Serial.println("Pixel already fading; skipping");
+        continue;
+      } else {
+        start_fade(i, new_pixel_id);
       }
     }
 
@@ -116,6 +119,7 @@ void fade_pixels() {
         step_width = FADE_STEPS[pixel.step];
         if (pixel.step == 0) break; // Can't slow down any more
       }
+
       new_val = pixel.val - step_width;
       if (new_val <= FADE_MIN) {
         // We are at the dimmest point
@@ -132,6 +136,7 @@ void fade_pixels() {
         step_width = FADE_STEPS[pixel.step];
         if (pixel.step == 0) break; // Can't slow down any more
       }
+
       new_val = pixel.val + step_width;
       if (new_val >= FADE_MAX) {
         // We've returned to full brightness
@@ -142,10 +147,10 @@ void fade_pixels() {
       }
     }
 
-    pixels[pixel.id] = CHSV(BASE_COLOR, 255, new_val);
     // Serial.printf("Set pixel %d %d -> %d (step %d, width %d)\r\n", pixel.id, pixel.val, new_val, pixel.step, step_width);
     pixel.val = new_val;
     pixel.step = min(sizeof(FADE_STEPS)/sizeof(byte) - 1, (uint)pixel.step + 1); // try to speed up
+    pixels[pixel.id] = CHSV(BASE_COLOR, 255, new_val);
     if (stop_fade) {
       // Serial.printf("Stopping fade for pixel %d\r\n", pixel.id);
       pixel.id = -1;  // Stop dimming this pixel
