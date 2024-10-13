@@ -12,6 +12,8 @@
 
 #if defined(TARGET_dark_duchess)
 #define PIXEL_COUNT 100
+#define LED_DATA 2
+#define COLOR_ORDER BGR
 #endif
 
 #if defined(TARGET_wokwi)
